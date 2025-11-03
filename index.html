@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lippert Axle Nomenclature Decoder</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for the result items */
+        .result-item {
+            border-left-width: 4px;
+            transition: all 0.3s ease;
+        }
+        .result-item:hover {
+            transform: translateX(2px);
+            background-color: #fcfcfc;
+        }
+
+        /* Print-specific styles */
+        @media print {
+            @page {
+                margin: 0; /* Aims to remove browser print header/footer */
+            }
+            body {
+                background-color: #ffffff;
+                padding: 0;
+                margin: 0;
+                font-size: 8pt; /* Set a base print font size - decreased by 2pt */
+                zoom: 0.9; /* Attempts to scale print output to 90%. Non-standard property, may not work in all browsers (e.g., Firefox). */
+            }
+            /* Hide everything except the results container and titles */
+            .no-print {
+                display: none !important;
+            }
+            #resultsContainer {
+                display: block !important;
+                box-shadow: none;
+                border: none;
+                margin-top: 0.5rem; /* Tighter margin */
+            }
+            .result-item {
+                border-left-width: 2px;
+                border-color: #999;
+                background-color: #fafafa !important; /* Ensure background prints */
+                page-break-inside: avoid;
+                padding: 4px 8px; /* Tighter padding */
+                margin-bottom: 4px; /* Tighter margin */
+            }
+            /* Remove default margins from paragraphs inside printed items */
+            .result-item p {
+                 margin: 0;
+                 line-height: 1.3;
+            }
+            .result-item .text-sm { /* Title */
+                font-size: 0.8rem;
+                font-weight: 600;
+            }
+             .result-item .text-lg { /* Code */
+                font-size: 0.9rem;
+            }
+            .result-item .text-gray-700 { /* Description */
+                 font-size: 0.8rem;
+            }
+
+            h1.print-title {
+                display: block !important;
+                text-align: left;
+                font-size: 1.2rem; /* Smaller title */
+                padding: 0;
+                margin-bottom: 0.5rem; /* Tighter margin */
+            }
+            /* Style for the entered code on print */
+            #printEnteredCode {
+                display: block !important;
+                font-size: 1rem;
+                font-family: monospace;
+                margin-bottom: 0.5rem;
+                padding-bottom: 0.25rem;
+                border-bottom: 1px solid #999;
+                color: #000;
+            }
+        }
+        h1.print-title {
+            display: none; /* Hide print title by default */
+        }
+        #printEnteredCode {
+            display: none; /* Hide entered code by default */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-2">
+    <div class="w-full max-w-3xl bg-white rounded-lg shadow-xl p-6 md:p-8">
+        
+        <!-- Header Removed -->
+
+        <!-- Input Section -->
+        <p class="text-lg font-semibold text-gray-700 mb-4 no-print text-center">Enter the full "Lippert Axle Description" code to begin.</p>
+        <div class="flex flex-col sm:flex-row gap-3 mb-6 no-print">
+            <input type="text" id="axleCodeInput" placeholder="e.g., LCI52-SBSA-86.5-68.5-..." class="flex-grow w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 transition-shadow">
+            <button id="decodeButton" class="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 shadow-md">
+                Decode
+            </button>
+            <button id="printButton" class="w-full sm:w-auto bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 shadow-md hidden no-print">
+                Print
+            </button>
+        </div>
+
+        <!-- Results Section -->
+        <h1 class="print-title">Decoded Axle Report</h1> <!-- Title for printing -->
+        <h2 id="printEnteredCode"></h2> <!-- New element for entered code -->
+        <div id="resultsContainer" class="mt-4">
+            <!-- Results will be dynamically inserted here -->
+            <div id="placeholder" class="text-center text-gray-500 py-8 no-print">
+                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-orange-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p class="mt-3 text-lg">Your decoded axle details will appear here.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Data Maps from PDF ---
+
+        const modelMap = {
+            "LCI20": "1,000-2,000 lbs, 7\" x 1.5\" brake",
+            "LCI35": "2,500-3,500 lbs, 10\" x 2.25\" brake",
+            "LCI44": "4,000-4,400 lbs, 10\" x 2.25\" HD brake",
+            "LCI52": "4,000-5,200 lbs, 12\" x 2\" brake",
+            "LCI60": "6,000 lbs, 12\" x 2\" brake",
+            "LCI60MH": "6,000 lbs, 12\" x 2\" brake",
+            "LCI70MH": "7,000 lbs, 12\" x 2\" brake",
+            "LCI70": "7,000 lbs, 12\" x 2\" brake",
+            "LCI80H": "8,000 lbs, 12\" x 2\" brake",
+            "LCI80": "8,000 lbs, 12.25\" x 3.38\" brake",
+            "LCI100": "10,000 lbs, 12.25\" x 3.38\" brake",
+            "LCI100S": "10,000 lbs (short), 12.25\" x 3.38\" brake",
+            "LCI120": "12,000 lbs, 12.25\" x 5.00\" brake",
+            "LCI160": "16,000 lbs, 12.25\" x 5.00\" brake"
+        };
+
+        const spindleMap = {
+            "SB": "Straight spindle, electric drum brake",
+            "SBSA": "Straight spindle, electric drum brake with self-adjust",
+            "SBSALL": "Straight spindle, electric drum brake with self-adjust, 33\" lead wires",
+            "SI": "Straight spindle, idler hub, no brake",
+            "SINF": "Straight spindle, idler hub, no brake and no brake flange",
+            "SBWP": "Straight spindle, electric with park feature drum brake",
+            "DB": "Drop spindle, electric drum brake",
+            "DBSA": "Drop spindle, electric drum brake with self-adjust",
+            "DBSALL": "Drop spindle, electric drum brake with self-adjust, 33\" lead wires",
+            "DBWP": "Drop spindle, electric with park feature drum brake",
+            "DI": "Drop spindle, idler hub, no brake",
+            "SHUS": "Straight spindle, hydraulic uni-servo drum brake",
+            "SHDS": "Straight spindle, hydraulic duo-servo drum brake",
+            "SHUSFB": "Straight spindle, hydraulic uni-servo free-backing drum brake",
+            "SAB": "Straight spindle, air brake",
+            "DHUS": "Drop spindle, hydraulic uni-servo drum brake",
+            "DHDS": "Drop spindle, hydraulic duo-servo drum brake",
+            "DHUSFB": "Drop spindle, hydraulic uni-servo free-backing drum brake",
+            "SD": "Straight spindle with hydraulic disc brake",
+            "DD": "Drop spindle with hydraulic disc brake"
+        };
+
+        const springCenterMap = {
+            "NOSS": "No spring seats welded"
+        };
+
+        const tiePlateMap = {
+            "SPIB": "Shock plate mounted for inboard shocks",
+            "SPOB": "Shock plate mounted for outboard shocks",
+            "NOSP": "No shock plate, regular tie plate is to be used",
+            "FIXSS": "Fixed spring seats on both sides at a standard width",
+            "ADJSS": "1 fixed and 1 adjustable spring seat (10-16K axles only)",
+            "HUTSS": "Hutch spring seat welded (10-16K axles only)"
+        };
+
+        const springMountingMap = {
+            "OS": "Overslung; springs mounted on top of axle tube",
+            "US": "Underslung; springs mounted underneath axle tube",
+            "NOSS": "No spring seat option"
+        };
+
+        const lubeMap = {
+            "L": "Super-lube, grease zerk in end of spindle",
+            "G": "Standard grease, solid face dust cap and no zerk",
+            "O": "Oil lubrication (Std on 10-16K, Opt on LCI80/80H)"
+        };
+
+        const hubMap = {
+            "440": "4 wheel bolts on a 4.00\" circle with 1/2-20 stud. (Idler)",
+            "545/5.5": "5 wheel bolts on a 4.50\" circle, 5.50\" hub face. (For 10\" and less wheels)",
+            "545/6.5": "5 wheel bolts on a 4.50\" circle, 6.50\" hub face. (For 12\" and larger wheels)",
+            "545/7": "5 wheel bolts on a 4.50\" circle with 1/2-20 stud. (7\"x1.25\" brake)",
+            "545": "5 wheel bolts on a 4.50\" circle with 1/2-20 stud. (10\"x2.25\" brake, disc, or idler)",
+            "C545": "CURT 5 wheel bolts on a 4.50\" circle. (10\"x2.25\" brake)",
+            "5475": "5 wheel bolts on a 4.75\" circle with 1/2-20 stud. (10\"x2.25\" brake, or idler)",
+            "550": "5 wheel bolts on a 5.00\" circle with 1/2-20 stud. (10\"x2.25\" brake, or idler)",
+            "555": "5 wheel bolts on a 5.50\" circle with 1/2-20 stud. (10\"x2.25\" brake, or idler)",
+            "655": "6 wheel bolts on a 5.50\" circle with 1/2-20 stud. (10\"x2.25\" brake, disc, or idler)",
+            "C655": "CURT 6 wheel bolts on a 5.50\" circle. (10\"x2.25\" brake)",
+            "65517": "6 wheel bolts on a 5.50\" circle with 1/2-20 stud. (12\"x2\" brake, disc, or idler)",
+            "C65517": "CURT 6 wheel bolts on a 5.50\" circle. (12\"x2\" brake)",
+            "660": "6 wheel bolts on a 6.00\" circle with 9/16-18 stud. (AG hub, Idler)",
+            "608B": "8 wheel bolts on a 8.00\" circle with 5/8-18 stud. (AG hub, Idler)",
+            "86517": "8 wheel bolts on a 6.50\" circle with 1/2-20 stud. (12\"x2\" brake, disc, or idler)",
+            "C86517": "CURT 8 wheel bolts on a 6.50\" circle. (12\"x2\" brake)",
+            "86537": "8 wheel bolts on a 6.50\" circle with 9/16-18 stud. (12\"x2\" brake, disc, or idler)",
+            "86557": "8 wheel bolts on a 6.50\" circle with 5/8-18 stud. (12\"x2\" brake)",
+            "865H-9/16": "8 wheel bolts on a 6.50\" circle with 9/16-18 stud. (12\"x2\" brake, disc, or idler)",
+            "C865H-9/16": "CURT 8 wheel bolts on a 6.50\" circle with 9/16-18 stud. (12\"x2\" brake)",
+            "865H-5/8": "8 wheel bolts on a 6.50\" circle with 5/8-18 stud. (12\"x2\" brake, disc, or idler)",
+            "C865H-5/8": "CURT 8 wheel bolts on a 6.50\" circle with 5/8-18 stud. (12\"x2\" brake)",
+            "86580-9/16": "8 wheel bolts on a 6.50\" circle with 9/16-18 stud. (12.25\"x3.38\" brake, disc, or idler)",
+            "C86580-9/16": "CURT 8 wheel bolts on a 6.50\" circle with 9/16-18 stud. (12.25\"x3.38\" brake)",
+            "86580-5/8": "8 wheel bolts on a 6.50\" circle with 5/8-18 stud. (12.25\"x3.38\" brake, disc, or idler)",
+            "C86580-5/8": "CURT 8 wheel bolts on a 6.50\" circle with 5/8-18 stud. (12.25\"x3.38\" brake)",
+            "865": "8 wheel bolts on a 6.50\" circle with 5/8-18 stud. (10K/12K brake or disc brake)",
+            "8/275": "8 wheel bolts on a 275mm circle with M22-1.5 stud. (12.25\"x5\" brake, or disc brake)",
+            "UTG": "5 mount on 10.13\" circle with 9/16 stud. Demountable. (12\"x2\" brake)"
+        };
+
+        const leafSpringMap = {
+            // Double Eye Springs
+            "7217": "Double Eye Spring: 1,000 lbs, 3 leaves, 20 3/8\" E-E",
+            "AWS2": "Double Eye Spring: 1,000 lbs, 2 leaves, 26\" E-E",
+            "7206": "Double Eye Spring: 1,250 lbs, 3 leaves, 23 1/8\" E-E",
+            "7222": "Double Eye Spring: 1,250 lbs, 3 leaves, 25 1/4\" E-E",
+            "7213": "Double Eye Spring: 1,400 lbs, 4 leaves, 20 1/2\" E-E",
+            "7209": "Double Eye Spring: 1,750 lbs, 3 leaves, 23 1/8\" E-E",
+            "7242": "Double Eye Spring: 1,750 lbs, 4 leaves, 25 1/4\" E-E",
+            "7224": "Double Eye Spring: 2,000 lbs, 3 leaves, 25 1/4\" E-E",
+            "AWS4": "Double Eye Spring: 2,000 lbs, 4 leaves, 26\" E-E",
+            "7278": "Double Eye Spring: 2,200 lbs, 4 leaves, 25 1/4\" E-E",
+            "7220": "Double Eye Spring: 2,500 lbs, 4 leaves, 23 1/8\" E-E",
+            "7225": "Double Eye Spring: 2,600 lbs, 4 leaves, 25 1/4\" E-E",
+            "SW5": "Double Eye Spring: 2,900 lbs, 5 leaves, 25 1/4\" E-E",
+            "7226": "Double Eye Spring: 3,000 lbs, 4 leaves, 25 1/8\" E-E",
+            "PR627": "Double Eye Spring: 3,000 lbs, 6 leaves, 27\" E-E",
+            "7227": "Double Eye Spring: 3,500 lbs, 6 leaves, 24 7/8\" E-E",
+            "7279": "Double Eye Spring: 4,000 lbs, 7 leaves, 24 7/8\" E-E",
+            // Slipper Springs
+            "WA2": "Slipper Spring: 400 lbs, 2 leaves, 24.25\" E-H",
+            "7202": "Slipper Spring: 1,000 lbs, 2 leaves, 27\" E-H",
+            "BT25-12": "Slipper Spring: 1,250 lbs, 4 leaves, 25\" E-H",
+            "BT25-22": "Slipper Spring: 1,750 lbs, 3 leaves, 25\" E-H",
+            "703T3RB": "Slipper Spring: 1,750 lbs, 3 leaves, 26.88\" E-H",
+            "7230": "Slipper Spring: 2,000 lbs, 4 leaves, 26.88\" E-H",
+            "7231": "Slipper Spring: 2,500 lbs, 4 leaves, 26.88\" E-H",
+            "E5226": "Slipper Spring: 3,500 lbs, 5 leaves, 26.5\" E-H",
+            "7232": "Slipper Spring: 3,500 lbs, 5 leaves, 26.88\" E-H",
+            "HW5116": "Slipper Spring: 3,500 lbs, 6 leaves, 26.5\" E-H",
+            "643611": "Slipper Spring: 4,000 lbs, 5 leaves, 26.88\" E-H",
+            "7233": "Slipper Spring: 4,000 lbs, 7 leaves, 26.88\" E-H",
+            "E5115": "Slipper Spring: 4,000 lbs, 6 leaves, 29.5\" E-H",
+            "E5226/7": "Slipper Spring: 4,000 lbs, 7 leaves, 26.5\" E-H",
+            "7280": "Slipper Spring: 5,000 lbs, 5 leaves, 30.5\" E-H",
+            "7244": "Slipper Spring: 6,000 lbs, 6 leaves, 30.5\" E-H",
+            "93182-11A": "Slipper Spring: 6,250 lbs, 6 leaves, 32.5\" E-H",
+            "7246": "Slipper Spring: 8,000 lbs, 6 leaves, 30.5\" E-H",
+            "354": "Slipper Spring: 11,200 lbs, 3 leaves, 43.75\" E-H (Requires FRONT or BACK designation)",
+            // No Spring
+            "NOSPRINGS": "No Springs on axle"
+        };
+
+        const wireLeadMap = {
+            "18PT": "Standard 18\" pigtail, wired on LH/road side, 18GA",
+            "18GNPT": "18\" pigtail, green, wired on LH/road side, 16GA",
+            "18BULPT": "18\" pigtail, green, wired on LH/road side. 16GA .18 male bullet",
+            "30PT": "30\" pigtail, wired on LH/road side, 18GA",
+            "30PT-SL": "30\" Pigtail with Split loom",
+            "SIW-18PT": "Special inner wire, jacketed, with 18\" pigtails",
+            "RW-18PT": "Reverse wired, 18\" pigtails on RH/curb side",
+            "RW-30PT": "Reverse wired, 30\" pigtails on RH/curb side",
+            "RWGN": "Reverse wired, 18\" green 16 gage pigtails",
+            "SPT": "Special weather pack pigtail, male end 10\"",
+            "30SPT": "Special weather pack pigtail, male end 30\"",
+            "FEMSPT": "Special weather pack pigtail, female end 10\"",
+            "PW": "Pre-Wire (idler axle, but wire left in)",
+            "CC": "Conduit Connector installed onto brake",
+            "BW": "Back wire, angle on backside of tube (10-16K only)",
+            "BW-PW": "Back wire w/angle and RH side wired to LH (10-16K only)"
+        };
+
+        const additionalDescriptorMap = {
+            "ABS": "Equipped with ABS sensor and tone ring",
+            "NO PWDR": "No powder coat option",
+            "NO CAMBER": "No camber put in tube (not recommended)",
+            "24E": "E-Commerce axle",
+            "177043": "Optional Tube: 5.2K AXLE TUBE, 3.00\" x .142\" MIN WALL",
+            "122446": "Optional Tube: 6K AXLE TUBE, 3.00\" x .202\" MIN WALL",
+            "122447": "Optional Tube: 7K AXLE TUBE, 3.00\" x .234\" MIN WALL",
+            "132068": "Optional Tube: 8K AXLE TUBE, 3.00\" x .275\" MIN WALL"
+        };
+
+        // --- Helper Function to create result HTML ---
+        function createResultEntry(title, code, description) {
+            return `
+                <div class="result-item border-l-4 border-orange-500 bg-gray-50 p-4 mb-3 rounded-r-md">
+                    <p class="text-sm font-semibold text-orange-700">${title}</p>
+                    <p class="text-lg font-mono font-medium text-gray-900">${code}</p>
+                    <p class="text-gray-700 mt-1">${description}</p>
+                </div>
+            `;
+        }
+
+        // --- Main Decode Function ---
+        function decodeAxleCode() {
+            const inputElement = document.getElementById('axleCodeInput');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const printButton = document.getElementById('printButton');
+            const printEnteredCodeEl = document.getElementById('printEnteredCode');
+            
+            let fullCode = inputElement.value.trim().toUpperCase();
+            if (!fullCode) {
+                resultsContainer.innerHTML = '<div class="text-center text-red-600 p-4 bg-red-50 rounded-lg no-print">Please enter an axle code.</div>';
+                printButton.classList.add('hidden'); // Hide print button on error
+                printEnteredCodeEl.textContent = ''; // Clear print code
+                return;
+            }
+
+            let resultsHTML = '';
+            let variantNumber = null;
+            let parts = [];
+
+            // 1. Check for space-separated Variant Number at the end
+            const spaceSplit = fullCode.split(' ');
+            if (spaceSplit.length > 1) {
+                const lastPart = spaceSplit[spaceSplit.length - 1];
+                if (lastPart.startsWith('V') && !isNaN(lastPart.substring(1))) {
+                    variantNumber = lastPart;
+                    fullCode = spaceSplit.slice(0, -1).join(' '); // Re-join in case of spaces in name (unlikely)
+                }
+            }
+            
+            parts = fullCode.split('-');
+
+            let partIndex = 0;
+            let unknownParts = [];
+
+            // 2. Parse Model Designation
+            if (parts.length > partIndex) {
+                let code = parts[partIndex];
+                let desc = modelMap[code];
+                // Check for CURT models
+                if (!desc && code.startsWith('CURT')) {
+                    let lciEquiv = 'LCI' + code.substring(4);
+                    if (modelMap[lciEquiv]) {
+                         desc = `CURT Model. (Equivalent to ${lciEquiv}: ${modelMap[lciEquiv]})`;
+                    }
+                }
+                
+                if(desc) {
+                    resultsHTML += createResultEntry('Model Designation', code, desc);
+                    partIndex++;
+                } else {
+                    unknownParts.push({ index: partIndex, code: code });
+                    partIndex++;
+                }
+            }
+
+            // 3. Parse Spindle and Brake
+            if (parts.length > partIndex) {
+                let code = parts[partIndex];
+                let desc = spindleMap[code];
+                if(desc) {
+                    resultsHTML += createResultEntry('Spindle & Brake', code, desc);
+                    partIndex++;
+                } else {
+                    unknownParts.push({ index: partIndex, code: code });
+                    partIndex++;
+                }
+            }
+
+            // 4. Parse Hub Face Dimension (Numeric)
+            if (parts.length > partIndex) {
+                let code = parts[partIndex];
+                if (!isNaN(code)) {
+                    resultsHTML += createResultEntry('Hub Face Dimension', code, `Customer specified: ${code}\" (Hub face to hub face)`);
+                    partIndex++;
+                } else {
+                    // This is expected to be a number, but we'll add to unknown if not
+                    unknownParts.push({ index: partIndex, code: code });
+                    partIndex++;
+                }
+            }
+            
+            // 5. Parse Spring Center Dimension (Numeric or Code)
+             if (parts.length > partIndex) {
+                let code = parts[partIndex];
+                let desc = springCenterMap[code];
+                if (desc) {
+                    resultsHTML += createResultEntry('Spring Center', code, desc);
+                    partIndex++;
+                } else if (!isNaN(code)) {
+                    resultsHTML += createResultEntry('Spring Center Dimension', code, `Customer specified: ${code}\"`);
+                    partIndex++;
+                } else {
+                    unknownParts.push({ index: partIndex, code: code });
+                    partIndex++;
+                }
+            }
+
+            // 6. Parse Tie Plate
+            if (parts.length > partIndex) {
+                let code = parts[partIndex];
+                let desc = tiePlateMap[code];
+                if(desc) {
+                    resultsHTML += createResultEntry('Tie Plate', code, desc);
+                    partIndex++;
+                } else {
+                    unknownParts.push({ index: partIndex, code: code });
+                    partIndex++;
+                }
+            }
+
+            // 7. Parse Spring Mounting
+            if (parts.length > partIndex) {
+                let code = parts[partIndex];
+                let desc = springMountingMap[code];
+                if(desc) {
+                    resultsHTML += createResultEntry('Spring Mounting', code, desc);
+                    partIndex++;
+                } else {
+                    unknownParts.push({ index: partIndex, code: code });
+                    partIndex++;
+                }
+            }
+
+            // 8. Parse Lubrication
+            if (parts.length > partIndex) {
+                let code = parts[partIndex];
+                let desc = lubeMap[code];
+                if(desc) {
+                    resultsHTML += createResultEntry('Lubrication', code, desc);
+                    partIndex++;
+                } else {
+                    unknownParts.push({ index: partIndex, code: code });
+                    partIndex++;
+                }
+            }
+
+            // 9. Parse Hub/Drum
+            if (parts.length > partIndex) {
+                let code = parts[partIndex];
+                let desc = hubMap[code];
+                if(desc) {
+                    resultsHTML += createResultEntry('Hub/Drum', code, desc);
+                    partIndex++;
+                } else {
+                    unknownParts.push({ index: partIndex, code: code });
+                    partIndex++;
+                }
+            }
+
+            // 10. Check for optional ABS
+            if (parts.length > partIndex && parts[partIndex] === 'ABS') {
+                let code = parts[partIndex];
+                let desc = additionalDescriptorMap[code];
+                resultsHTML += createResultEntry('ABS Designation', code, desc);
+                partIndex++;
+            }
+
+            // 11. Parse Leaf Spring
+            if (parts.length > partIndex) {
+                let code = parts[partIndex];
+                let desc = leafSpringMap[code];
+                if(desc) {
+                    resultsHTML += createResultEntry('Leaf Spring', code, desc);
+                    partIndex++;
+                } else {
+                    unknownParts.push({ index: partIndex, code: code });
+                    partIndex++;
+                }
+            }
+
+            // 12. Parse Wire Leads
+            if (parts.length > partIndex) {
+                let code = parts[partIndex];
+                let desc = wireLeadMap[code];
+                if(desc) {
+                    resultsHTML += createResultEntry('Wire Leads', code, desc);
+                    partIndex++;
+                } else {
+                    unknownParts.push({ index: partIndex, code: code });
+                    partIndex++;
+                }
+            }
+
+            // 13. Check for remaining parts as Additional Descriptors
+            while (parts.length > partIndex) {
+                let code = parts[partIndex];
+                let desc = additionalDescriptorMap[code];
+                if (desc) {
+                    resultsHTML += createResultEntry('Additional Descriptor', code, desc);
+                } else {
+                    // Add to unknown parts instead of breaking
+                    unknownParts.push({ index: partIndex, code: code });
+                }
+                partIndex++;
+            }
+            
+            // 14. Add Variant Number if found
+            if (variantNumber) {
+                resultsHTML += createResultEntry('Axle Beam Assembly Number', variantNumber, 'Axle Beam Assembly Variant Number (Internal use only)');
+            }
+
+            // 15. Display results or error
+            if (resultsHTML === '') {
+                 resultsContainer.innerHTML = `<div class="text-center text-red-600 p-4 bg-red-50 rounded-lg border border-red-200 no-print">
+                    <strong class="font-semibold">Could not decode.</strong> Please check the format and try again.
+                 </div>`;
+                 printButton.classList.add('hidden'); // Hide print button on error
+                 printEnteredCodeEl.textContent = ''; // Clear print code
+            } else {
+                 resultsContainer.innerHTML = resultsHTML;
+
+                 // Add unknown parts at the end
+                 if (unknownParts.length > 0) {
+                    let unknownHTML = '<div class="result-item border-l-4 border-gray-400 bg-gray-100 p-4 mb-3 rounded-r-md">';
+                    unknownHTML += '<p class="text-sm font-semibold text-gray-700">Unrecognized Parts</p>';
+                    unknownHTML += '<p class="text-gray-700 mt-1">The following parts of the code could not be identified based on the provided PDF:</p><ul class="list-disc list-inside mt-2">';
+                    unknownParts.forEach(part => {
+                        unknownHTML += `<li class="font-mono text-gray-900">${part.code} <span class="text-gray-600 font-sans">(at position ${part.index + 1})</span></li>`;
+                    });
+                    unknownHTML += '</ul></div>';
+                    resultsContainer.innerHTML += unknownHTML;
+                 }
+                 printButton.classList.remove('hidden'); // Show print button
+                 printEnteredCodeEl.textContent = inputElement.value.trim(); // Set print code
+            }
+        }
+
+        // --- New Print Function ---
+        function printResults() {
+            window.print();
+        }
+
+        // --- Event Listeners ---
+        document.getElementById('decodeButton').addEventListener('click', decodeAxleCode);
+        document.getElementById('printButton').addEventListener('click', printResults);
+        
+        // Allow pressing Enter to decode
+        document.getElementById('axleCodeInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                decodeAxleCode();
+            }
+        });
+
+    </script>
+</body>
+</html>
+
